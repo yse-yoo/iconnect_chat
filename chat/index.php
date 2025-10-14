@@ -33,6 +33,35 @@ $friends = array_filter($dummy_users, fn($u) => $u['id'] !== $user_id);
   <meta charset="UTF-8">
   <title>多言語チャット（選択）</title>
   <script src="https://cdn.tailwindcss.com"></script>
+
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script>
+    const socket = io("http://localhost:3000", {
+      transports: ["websocket"]
+    });
+    const CURRENT_USER_ID = <?= json_encode($user_id) ?>;
+    const CURRENT_USER_NAME = <?= json_encode($name) ?>;
+    const CURRENT_LANG = <?= json_encode($lang) ?>;
+
+    socket.on("connect", () => {
+      socket.emit("register", {
+        user_id: CURRENT_USER_ID,
+        name: CURRENT_USER_NAME,
+        from_lang: CURRENT_LANG,
+      });
+      console.log("✅ connected as", CURRENT_USER_NAME);
+    });
+
+    // 🔔 招待受信
+    socket.on("invite_notice", ({
+      from_id,
+      from_name,
+      room_id
+    }) => {
+      alert(`💬 ${from_name} さんからチャットの招待が届きました！\n\n参加するにはOKを押してください。`);
+      window.location.href = `chat.php?room=${room_id}`;
+    });
+  </script>
 </head>
 
 <body class="bg-gray-100 p-10 text-center">
@@ -41,13 +70,29 @@ $friends = array_filter($dummy_users, fn($u) => $u['id'] !== $user_id);
 
   <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
     <?php foreach ($friends as $friend): ?>
-      <a href="chat.php?room=<?= "room_" . min($user_id, $friend['id']) . "_" . max($user_id, $friend['id']) ?>"
+      <a href="#"
+        onclick="inviteUser(<?= $friend['id'] ?>, '<?= htmlspecialchars($friend['name']) ?>')"
         class="bg-white p-4 rounded-lg shadow hover:bg-blue-50 transition">
         <div class="text-lg font-bold"><?= htmlspecialchars($friend['name']) ?></div>
         <div class="text-gray-500 text-sm"><?= htmlspecialchars($friend['lang']) ?></div>
       </a>
     <?php endforeach; ?>
   </div>
+
+  <script>
+    function inviteUser(targetId, targetName) {
+      const roomId = `room_${Math.min(CURRENT_USER_ID, targetId)}_${Math.max(CURRENT_USER_ID, targetId)}`;
+      socket.emit("invite_user", {
+        from_id: CURRENT_USER_ID,
+        from_name: CURRENT_USER_NAME,
+        target_id: targetId,
+        room_id: roomId
+      });
+      alert(`📨 ${targetName} さんをチャットに招待しました！`);
+      // 自分はチャットに移動
+      window.location.href = `chat.php?room=${roomId}`;
+    }
+  </script>
 </body>
 
 </html>

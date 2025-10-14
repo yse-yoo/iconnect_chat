@@ -61,6 +61,27 @@ io.on("connection", (socket) => {
   });
 
   // ==============================
+  // 招待送信（index.phpから）
+  // ==============================
+  socket.on("invite_user", ({ from_id, from_name, target_id, room_id }) => {
+    const target = [...users.values()].find((u) => u.user_id === target_id);
+    if (!target) {
+      socket.emit("error_message", "⚠️ 相手がオフラインのようです。");
+      return;
+    }
+
+    console.log(`📨 招待: ${from_name} → ${target.name} (room: ${room_id})`);
+
+    // 相手に通知
+    target.socket.emit("invite_notice", {
+      from_id,
+      from_name,
+      room_id,
+    });
+  });
+
+
+  // ==============================
   // メッセージ送受信
   // ==============================
   socket.on("send_message", ({ text, roomId }) => {
