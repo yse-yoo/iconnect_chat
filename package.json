@@ -2,6 +2,7 @@
   "name": "iconnect_chat",
   "version": "1.0.0",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "dev": "nodemon server.js"
   },

@@ -7,11 +7,17 @@ npm init -y
 ```
 
 2. パッケージインストール
-
+### WebSocketサーバ
 ```bash
-npm i express socket.io cors dotenv @google/genai
+npm i express socket.io cors dotenv
 ```
 
+### Gemini AI
+```bash
+npm i @google/genai
+```
+
+### サーバーモニター
 ```bash
 npm i -D nodemon
 ```
