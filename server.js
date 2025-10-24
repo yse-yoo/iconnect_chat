@@ -41,7 +41,6 @@ app.post("/api/translate", async (req, res) => {
             error: "text, fromLang, and toLang are required.",
         });
     }
-
     try {
         const translatedText = await aiTranslate(text, fromLang, toLang);
         console.log("🌐 Translated:", translatedText);
@@ -73,10 +72,12 @@ const io = new Server(httpServer, {
 io.on("connection", (socket) => {
     console.log("🟢 New connection:", socket.id);
 
-    socket.on("join_room", ({ roomId, name }) => {
+    socket.on("join_room", ({ roomId, userName }) => {
+        console.log(`➡️ ${userName} joining room:`, roomId);
         socket.join(roomId);
-        socket.name = name || `User-${socket.id.slice(0, 5)}`;
+        socket.name = userName;
 
+        // 参加メッセージをルームに通知
         socket.to(roomId).emit("join_message", {
             from: "system",
             text: `${socket.name} joined the room.`,
@@ -98,39 +99,38 @@ io.on("connection", (socket) => {
 });
 
 export async function aiTranslate(text, fromLang, toLang) {
-    const prompt = `
-        Translate the following text from ${fromLang} to ${toLang}.
-        Return only the translated text.
-        Do not repeat the original sentence.
-        No explanations, no comments, no quotes.
+    if (!text || typeof text !== "string") {
+        return null;
+    }
 
-        ${text}`;
-
-    console.log("🌐 Gemini Prompt:", text, fromLang, toLang);
-
-    const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-
-    const contents = [
-        {
-            role: "user",
-            parts: [{ text: prompt }],
-        },
-    ];
-
-    const response = await ai.models.generateContent({
-        model: modelName,
-        config: { maxOutputTokens: 1024 },
-        contents,
-    });
-
-    // console.log("🌐 Gemini Response:", response);
+    // 最大文字数制限（サーバー負荷保護）
+    if (text.length > 100) {
+        return null;
+    }
 
     try {
-        const text = response?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-        return text;
+        const prompt = `
+            Translate the following text from ${fromLang} to ${toLang}.
+            Only output the translation.
+            No explanations.
+            ${text}`;
+
+        const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+
+        const response = await ai.models.generateContent({
+            model: modelName,
+            config: { maxOutputTokens: 512 },
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+        });
+
+        const result =
+            response?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        if (!result) throw "Empty result";
+        return result;
+
     } catch (err) {
-        console.error("🌐 Gemini Error:", err);
-        return "error";
+        console.error("[AI翻訳失敗]", err);
+        return null; // ← UI側で判定しやすい
     }
 }
 

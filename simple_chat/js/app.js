@@ -12,16 +12,16 @@ const socket = io(HOST, { transports: ["websocket"] });
 
 // 固定ルーム（簡易）
 const roomId = "room1";
-const username = "User" + Math.floor(Math.random() * 1000);
+const userName = "User" + Math.floor(Math.random() * 1000);
 
 const langSelect = document.getElementById("lang-select");
 
 // 接続時
 socket.on("connect", () => {
     console.log("🟢 Connected:", socket.id);
-    append(`✅ Connected (${username})`, "system");
-    socket.name = username;
-    socket.emit("join_room", { roomId }); // ルーム参加（もし対応していれば）
+    append(`✅ Connected (${userName})`, "system");
+    socket.name = userName;
+    socket.emit("join_room", { roomId, userName });
 });
 
 // JOINメッセージ受信
@@ -34,15 +34,32 @@ socket.on("chat_message", async (data) => {
     const toLang = langSelect.value;
     const fromLang = data.lang || "auto";
 
-    let converted = data.text;
+    // オリジナルテキスト
+    let text = data.text;
+    append(`${data.from}: ${text}`, "remote", text, toLang);
 
     // 翻訳
-    if (toLang !== fromLang) {
-        converted = await translateText(data.text, fromLang, toLang);
+    let loadingElem;
+    if (toLang === fromLang) {
+        return;
+    } else {
+        loadingElem = appendLoading();
+        try {
+            const converted = await translateText(data.text, fromLang, toLang);
+            if (converted && typeof converted === "string") {
+                append(`${data.from}: ${converted}`, "remote");
+            } else {
+                append("⚠️ Translate failed", "system");
+            }
+        } catch (e) {
+            append("⚠️ Translate error", "system");
+        } finally {
+            // ローディング削除
+            if (loadingElem) loadingElem.remove();
+        }
     }
-
-    append(`${data.from}: ${converted}`, "remote", converted, toLang);
 });
+
 
 // エラーメッセージ
 socket.on("error_message", (msg) => append(msg, "error"));
@@ -58,6 +75,12 @@ form.addEventListener("submit", (e) => {
     e.preventDefault();
     const text = input.value.trim();
     if (!text) return;
+
+    // 🚫 文字数制限
+    if (text.length > 100) {
+        alert("100文字以内で入力してください。");
+        return;
+    }
 
     // 自分のチャットログに表示
     append(`🟢 ${text}`, "self");
@@ -103,14 +126,17 @@ function append(msg, type = "", speakText = "", langValue = "") {
         const btn = document.createElement("button");
         btn.innerHTML = "🔊";
         btn.className = "ml-2 px-2 py-1 text-sm border rounded bg-gray-200 hover:bg-gray-300";
+        btn.dataset.loading = "false";
+
         btn.addEventListener("click", () => {
-            // ✅ dataset 参照
             const voiceId = langSelect.options[langSelect.selectedIndex].dataset.voice;
-            speak(textDiv.dataset.speak, langValue, voiceId);
+            speak(textDiv.dataset.speak, langValue, voiceId, btn);
         });
+
         div.appendChild(btn);
     }
 
+    // チャットボックスに追加
     chatBox.appendChild(div);
     chatBox.scrollTop = chatBox.scrollHeight;
 }
@@ -134,6 +160,16 @@ function hashKey(text, lang) {
     return btoa(encodeURIComponent(text + "_" + lang));
 }
 
+// 翻訳中に表示する行（optional）
+function appendLoading() {
+    const div = document.createElement("div");
+    div.className = "p-2 rounded text-sm bg-yellow-50 border border-yellow-200 text-yellow-600 italic";
+    div.textContent = "⏳ 翻訳中...";
+    chatBox.appendChild(div);
+    chatBox.scrollTop = chatBox.scrollHeight;
+    return div;
+}
+
 // ==============================
 // 読み上げ関数
 // ==============================
@@ -146,17 +182,23 @@ function hashKey(text, lang) {
 //     speechSynthesis.speak(uttr);
 // }
 
-async function speak(text, lang, voiceId) {
+async function speak(text, lang, voiceId, btn) {
     const key = hashKey(text, lang);
 
-    // ✅ キャッシュがあれば即再生
+    // キャッシュ再生
     if (ttsCache[key]) {
         console.log("🔁 Play from cache");
         new Audio(ttsCache[key]).play();
         return;
     }
 
-    // ✅ なければAPI呼び出し
+    // 🔄 ローディングON
+    btn.disabled = true;
+    btn.innerHTML = `
+      <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-800"></div>
+    `;
+
+    // API
     const response = await fetch(`${HOST}/api/tts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -166,9 +208,12 @@ async function speak(text, lang, voiceId) {
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
 
-    // ✅ キャッシュ登録
+    // キャッシュ
     ttsCache[key] = url;
 
-    console.log("🆕 Play from ElevenLabs API");
+    // ✅ UI戻す
+    btn.disabled = false;
+    btn.innerHTML = "🔊";
+
     new Audio(url).play();
 }
