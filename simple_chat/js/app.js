@@ -8,10 +8,12 @@ const socket = io(HOST, { transports: ["websocket"] });
 const roomId = "room1";
 const username = "User" + Math.floor(Math.random() * 1000);
 
+const langSelect = document.getElementById("lang-select");
+
 // 接続時
 socket.on("connect", () => {
     console.log("🟢 Connected:", socket.id);
-    append(`✅ 接続しました (${username})`, "system");
+    append(`✅ Connected (${username})`, "system");
     socket.name = username;
     socket.emit("join_room", { roomId }); // ルーム参加（もし対応していれば）
 });
@@ -23,12 +25,27 @@ socket.on("join_message", (data) => {
 
 // メッセージ受信
 socket.on("chat_message", (data) => {
-    append(`${data.from ?? "匿名"}: ${data.text}`, "remote");
+    append(`${data.from ?? "anonymouse"}: ${data.text}`, "remote");
     console.log("💬 Received message:", data);
-    // 🔊 読み上げ
     // 言語指定
-    const lang = "ja-JP"; 
-    speak(data.text, lang); 
+    const fromLang = data.lang;
+    const toLang = langSelect.value;
+
+    console.log(`🌐 Translating from ${fromLang} to ${toLang}`);
+
+    if (fromLang === toLang) {
+        // 同じ言語ならそのまま読み上げ
+        speak(data.text, toLang);
+        return;
+    } else {
+        // 翻訳
+        translateText(data.text, fromLang, toLang).then(translated => {
+            // 翻訳結果を表示
+            append(`🔄 Translated: ${translated}`, "remote");
+            // 🔊 読み上げ
+            speak(translated, toLang);
+        });
+    }
 });
 
 // エラーメッセージ
@@ -49,8 +66,12 @@ form.addEventListener("submit", (e) => {
     // 自分のチャットログに表示
     append(`🟢 ${text}`, "self");
 
+    // 言語選択取得
+    const myLang = langSelect.value;
+    console.log(`🌐 My language: ${myLang}`);
+
     // サーバーに送信
-    socket.emit("send_message", { text, roomId });
+    socket.emit("send_message", { text, roomId, lang: myLang });
     input.value = "";
 });
 
@@ -78,10 +99,25 @@ function append(msg, type = "") {
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 
+function translateText(text, fromLang, toLang) {
+    return fetch(`${HOST}/api/translate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, fromLang, toLang })
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            return data.translatedText;
+        });
+}
+
 // ==============================
 // 読み上げ関数
 // ==============================
-function speak(text, lang = "ja-JP") {
+function speak(text, lang) {
     const uttr = new SpeechSynthesisUtterance(text);
     uttr.lang = lang;
     uttr.rate = 1;   // 読み上げ速度（0.5〜2）
