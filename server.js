@@ -22,7 +22,7 @@ io.on("connection", (socket) => {
     socket.name = name || `User-${socket.id.slice(0, 5)}`;
     console.log(`🚪 ${socket.name} joined room ${roomId}`);
 
-    socket.to(roomId).emit("chat_message", {
+    socket.to(roomId).emit("join_message", {
       from: "system",
       text: `${socket.name} が参加しました。`,
     });
