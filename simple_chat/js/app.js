@@ -1,5 +1,8 @@
+if (typeof HOST === "undefined") {
+  alert("HOSTをenv.jsで設定してください");
+}
 // サーバーに接続
-const socket = io("http://localhost:3000", { transports: ["websocket"] });
+const socket = io(HOST, { transports: ["websocket"] });
 
 // 固定ルーム（簡易）
 const roomId = "room1";

@@ -34,6 +34,7 @@
       </button>
     </form>
 
+    <script src="js/env.js"></script>
     <script src="js/app.js"></script>
   </body>
 </html>

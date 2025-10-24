@@ -12,11 +12,6 @@ npm init -y
 npm i express socket.io cors dotenv
 ```
 
-### Gemini AI
-```bash
-npm i @google/genai
-```
-
 ### サーバーモニター
 ```bash
 npm i -D nodemon
@@ -29,7 +24,7 @@ GEMINI_API_KEY=あなたのAPIキー
 PORT=3000
 ```
 
-4. package.json の scripts 部分を修正
+4. package.json の type と scripts 部分を修正
 
 ```json
 ...
@@ -42,7 +37,9 @@ PORT=3000
 ...
 ```
 
-## フロー
+
+
+## 招待機能フロー
 ```json
 [PHP + MySQL] (ログイン済み)
        ↓ user_id を JS に埋め込む
@@ -52,4 +49,10 @@ PORT=3000
        ↔ user_id ↔ socket.id マッピング保持
        ↓
   friend_user_id に emit('invite') で直接マッチング
+```
+
+## 翻訳
+### Gemini AI
+```bash
+npm i @google/genai
 ```

@@ -1,8 +1,8 @@
 <?php
 session_start();
 if (!isset($_SESSION['user_id'])) {
-    header("Location: index.php");
-    exit;
+  header("Location: index.php");
+  exit;
 }
 
 $user_id = $_SESSION['user_id'];
@@ -12,6 +12,7 @@ $room_id = $_GET['room'] ?? null;
 ?>
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
   <meta charset="UTF-8">
   <title>チャットルーム</title>
@@ -41,6 +42,8 @@ $room_id = $_GET['room'] ?? null;
     const ROOM_ID = <?= json_encode($room_id) ?>;
   </script>
 
+  <script src="js/env.js"></script>
   <script src="js/chat.js"></script>
 </body>
+
 </html>

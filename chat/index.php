@@ -79,6 +79,7 @@ $friends = array_filter($dummy_users, fn($u) => $u['id'] !== $user_id);
     <?php endforeach; ?>
   </div>
 
+  <script src="js/env.js"></script>
   <script src="js/app.js"></script>
 </body>
 
