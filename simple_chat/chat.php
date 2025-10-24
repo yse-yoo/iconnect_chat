@@ -15,10 +15,10 @@ require_once __DIR__ . '/lib/lang.php';
   <h1 class="text-2xl font-bold mb-4 text-blue-600">💬 簡単チャット</h1>
 
   <div class="w-full max-w-md mb-4">
-    <select id="lang-select" name="lang" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 w-full">
-      <?php foreach (Lang::langs as $code => $label): ?>
-        <option value="<?= $code ?>">
-          <?= $label ?>
+    <select id="lang-select" class="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 w-full">
+      <?php foreach (Lang::langs as $code => $obj): ?>
+        <option value="<?= $code ?>" data-voice="<?= $obj['voice'] ?>">
+          <?= $obj['label'] ?>
         </option>
       <?php endforeach ?>
     </select>

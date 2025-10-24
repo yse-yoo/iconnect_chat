@@ -5,10 +5,17 @@ dotenv.config();
 
 import express from "express";
 import cors from "cors";
+import fetch from "node-fetch";
+import crypto from "crypto";
+import fs from "fs";
+import path from "path";
+
 import { GoogleGenAI } from "@google/genai";
 
 const HOST = process.env.HOST || "localhost";
 const PORT = process.env.PORT || 3000;
+
+let voiceId = "";
 
 // ==============================
 // 🔥 Express for REST API
@@ -126,3 +133,61 @@ export async function aiTranslate(text, fromLang, toLang) {
         return "error";
     }
 }
+
+// ==============================
+// ElevenLabs TTS API
+// ==============================
+app.post("/api/tts", async (req, res) => {
+    const { text, lang, voiceId } = req.body;
+    if (!text || !lang || !voiceId) {
+        return res.status(400).json({
+            error: "text, lang, and voiceId are required.",
+        });
+    }
+
+    // ハッシュ生成（text+lang）
+    const hash = crypto.createHash("md5").update(text + lang).digest("hex");
+    const filePath = path.join("tts-cache", `${hash}.mp3`);
+
+    // ✅ もしファイルが存在したらキャッシュ返却
+    if (fs.existsSync(filePath)) {
+        console.log("🟠 Cache hit:", filePath);
+
+        const data = fs.readFileSync(filePath);
+        res.setHeader("Content-Type", "audio/mpeg");
+        return res.send(data);
+    }
+
+    console.log("🟢 Cache miss → ElevenLabs API");
+
+    // ===========================
+    //  ElevenLabs API 呼び出し
+    // ===========================
+    const url = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`;
+
+    const response = await fetch(url, {
+        method: "POST",
+        headers: {
+            "xi-api-key": process.env.ELEVEN_API_KEY,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            text,
+            model_id: "eleven_multilingual_v2",
+            voice_settings: {
+                stability: 0.3,
+                similarity_boost: 0.8
+            }
+        })
+    });
+    
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // ✅ サーバーに保存（キャッシュ登録）
+    fs.writeFileSync(filePath, buffer);
+
+    // レスポンス返却
+    res.setHeader("Content-Type", "audio/mpeg");
+    res.send(buffer);
+});
